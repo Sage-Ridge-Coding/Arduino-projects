@@ -45,10 +45,11 @@ const int resistance = 220000;  // Used in conjunction with the thermistor to co
 // Digital pin assignments
 const int relay_one = 12; // Output. Orange wire. Contols heater bed.
 const int relay_two = 11; // Output. Blue wire. Controls UV LEDs. Center positive.
-const int go_button = 10; // Input. White wire
+const int go_button = 10; // Input. White wire. The top button is used to initiate the curing cycle.
 const int LED01 = 3;      // First red LED
 const int LED02 = 4;      // Second red LED
-const int LED03 = 5;     // Power LED
+const int LED03 = 5;      // Power LED. Currently illuminates box in amber when power is on.
+                          // Could be used to indicate when the main power supply is on.
 
 // Targets
 const int target_temp = 60;        // Target curing chamber temperature in degrees C
@@ -107,12 +108,12 @@ void loop() {
    plate_temp = check_Temperature(plate_thermistor, resistance);
   
   // Check the start button using a debounce algorithm
-  // Start with a single push. Abort with a double push.
+  // Start cycle with a single push. Abort with a double push.
   // We use millis() to detect a double push, control for bounce, and 
   // keep track of the time for the 120 minute curing cycle. 
   // There is a slight chance that the millis() counter would roll over
   // back to zero during a cycle (this happens every 50 days or so), 
-  // so we try to account for that.
+  // so we try to account for that. (Currently a FIXME)
   int reading = digitalRead(go_button);
   // Serial.println(reading);
   
