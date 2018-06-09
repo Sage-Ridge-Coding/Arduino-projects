@@ -114,9 +114,7 @@ void loop() {
   // back to zero during a cycle (this happens every 50 days or so), 
   // so we try to account for that.
   int reading = digitalRead(go_button);
-  Serial.println(reading);
-  if (reading == HIGH) { digitalWrite(LED03, LOW); }
-  delay(1000);
+  // Serial.println(reading);
   
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
