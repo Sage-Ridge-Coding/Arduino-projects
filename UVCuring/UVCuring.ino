@@ -144,11 +144,11 @@ void loop() {
    Serial.println(" C");
 
   // Run or terminate curing process
-//  if      (!cycle_run) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
-//  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
-//  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
-//  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
-//  else    { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
+  if      (!cycle_run) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
+  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
+  else    { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
   
 }
 
