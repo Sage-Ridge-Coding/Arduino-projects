@@ -2,29 +2,21 @@
     UV Curing chamber code
     Christopher von Nagy and Ryan Bell
     Sage Ridge School
-
     Copyright 2018
-
     This code is intended to run our curing
     chamber for photopolymer prints
-
     Usage:
-
       Press the control button once to start the curing cycle. The UV lights will immediately turn on and
       the heating bed will start to warm. The target temperature for the curing oven is set to 60 C, the
       suggested temperature for curing FormLabs clear resin. Once the target temperature is reached, the
       heating plate should cycle on and off via one of the two relays.
-
       Press the control button twice in rapid succession and the curing process will immediately abort.
-
       While on the box will be red.
       While heating the box will be red with flashing.
       The large top button will illuminate if power is provided to the Arduino.
       Power must be provided to both the Arduino and to the heating bed / LED power supply
       for the system to operate.
-
       Normally open relays close when pulled low. 
-
 */
 
 // Define some constants
@@ -40,16 +32,16 @@
 // Analog pin assignments for thermistors (100K)
 const int box_thermistor = 0;   // Yellow wire 100K Ohm
 const int plate_thermistor = 1; // White wire 100K Ohm
-const int resistance = 220000;  // Used in conjunction with the thermistor to convert R (Ohms) to V (Voltage)
+const int resistance = 100000;  // Used in conjunction with the thermistor to convert R (Ohms) to V (Voltage)
 
 // Digital pin assignments
 const int relay_one = 12; // Output. Orange wire. Contols heater bed.
 const int relay_two = 11; // Output. Blue wire. Controls UV LEDs. Center positive.
-const int go_button = 10; // Input. White wire. The top button is used to initiate the curing cycle.
+const int go_button = 50; // Input. White wire. The top button is used to initiate the curing cycle.
 const int LED01 = 3;      // First red LED
 const int LED02 = 4;      // Second red LED
 const int LED03 = 5;      // Power LED. Currently illuminates box in amber when power is on.
-                          // Could be used to indicate when the main power supply is on.
+                          // Might be used to indicate when the main power supply is on.
 
 // Targets
 const int target_temp = 60;        // Target curing chamber temperature in degrees C
@@ -59,6 +51,7 @@ unsigned long target_time = 10000; // Target curing time. 120 minutes in millise
 int samples[NUMSAMPLES]; // Array to hold a set of resistance readings for averaging
 int box_temp;            // The box temperature as read from the box thermistor
 int plate_temp;          // The plate temperature as read from the plate thermistor
+boolean heating;         // Heating element is on or off.
 
 // Control button
 boolean cycle_run = 0; // If true, the curing process is running
@@ -66,7 +59,6 @@ int buttonState;             // the current reading from the input pin
 int lastButtonState = LOW;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if bouncing still occurs
-unsigned long doublePressMaxDelay = 1000; // the maximum time between pushes to trigger an abort
 unsigned long finish_time;
 
 
@@ -98,6 +90,8 @@ void setup() {
   // Debugging information to serial monitor
   Serial.begin(9600); 
 
+  heating = 0;
+
 }
 
 //Run
@@ -114,44 +108,56 @@ void loop() {
   // There is a slight chance that the millis() counter would roll over
   // back to zero during a cycle (this happens every 50 days or so), 
   // so we try to account for that. (Currently a FIXME)
-  int reading = digitalRead(go_button);
-  // Serial.println(reading);
+
   
+  int reading = digitalRead(go_button);
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
   }
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
       buttonState = reading;
-      if ((buttonState == HIGH) && ((millis() - doublePressMaxDelay) > doublePressMaxDelay)){
-        cycle_run = 1;
+      if (buttonState == HIGH){
+        cycle_run = !cycle_run;
         finish_time = millis() + target_time;
       }
-      else if ((buttonState == HIGH) && ((millis() - doublePressMaxDelay) <= doublePressMaxDelay)) {
-        cycle_run = 0;
-      }
-
     }
   }
 
+  Serial.print("Button state: ");
+  Serial.print(buttonState);
+  Serial.print(" ");
+
+
+
+  // Run or terminate curing process
+  if      (!cycle_run) {  heating = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
+  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0;  heating = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { heating = 1; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, LOW); }
+  else    { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
+
    // Print status and temperature to serial monitor
-   Serial.print("Run: ");
-   Serial.print(cycle_run);
    Serial.print(" Box temperature: ");
    Serial.print(box_temp);
    Serial.print(" C");
    Serial.print(" Plate temperature: ");
    Serial.print(plate_temp);
-   Serial.println(" C");
+   Serial.print(" C");
+   Serial.print(" Run: ");
+   Serial.print(cycle_run);
+   Serial.print(" Heat: ");
+   Serial.println(heating);
 
-  // Run or terminate curing process
-  if      (!cycle_run) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
-  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); delay(1000); digitalWrite(LED01,LOW); }
-  else    { digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); delay(1000); }
+   // save the reading.  Next time through the loop,
+   // it'll be the lastButtonState:
+   lastButtonState = reading;
+   
+
+   // delay(10);
   
 }
+
 
 // Functions
 
@@ -213,5 +219,3 @@ int check_Temperature(int p, int r) {
   // Return the temperature value
   return(steinhart);
 }
-
-
