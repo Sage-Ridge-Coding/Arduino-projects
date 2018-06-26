@@ -16,7 +16,7 @@
       The large top button will illuminate if power is provided to the Arduino.
       Power must be provided to both the Arduino and to the heating bed / LED power supply
       for the system to operate.
-      Normally open relays close when pulled low. 
+      Normally open relays close when pulled low.
 */
 
 // Define some constants
@@ -42,16 +42,16 @@ const int go_button = 8; // Input. White wire. The top button is used to initiat
 const int LED01 = 3;      // First red LED
 const int LED02 = 4;      // Second red LED
 const int LED03 = 5;      // Power LED. Currently illuminates box in amber when power is on.
-                          // Might be used to indicate when the main power supply is on.
+// Might be used to indicate when the main power supply is on.
 
 // Targets
-const int target_temp = 60;        // Target curing chamber temperature in degrees C
+const float target_temp = 60;        // Target curing chamber temperature in degrees C
 unsigned long target_time = 7200000; // Target curing time. 120 minutes in milliseconds is 7200000
 
 // Control variables
 int samples[NUMSAMPLES]; // Array to hold a set of resistance readings for averaging
-int box_temp;            // The box temperature as read from the box thermistor
-int plate_temp;          // The plate temperature as read from the plate thermistor
+float box_temp;            // The box temperature as read from the box thermistor
+float plate_temp;          // The plate temperature as read from the plate thermistor
 boolean heating;         // Heating element is on or off.
 
 // Control button
@@ -87,8 +87,8 @@ void setup() {
   digitalWrite(LED03, HIGH);
 
   // Debugging information to serial monitor
-  Serial.begin(9600); 
-  
+  Serial.begin(9600);
+
   heating = 0;
 
 }
@@ -96,19 +96,19 @@ void setup() {
 //Run
 void loop() {
 
-   // Check ambient box temperature
-   box_temp = check_Temperature(box_thermistor);
-   plate_temp = check_Temperature(plate_thermistor);
-  
+  // Check ambient box temperature
+  box_temp = check_Temperature(box_thermistor);
+  plate_temp = check_Temperature(plate_thermistor);
+
   // Check the start button using a debounce algorithm
   // Start cycle with a single push. Abort with a double push.
-  // We use millis() to detect a double push, control for bounce, and 
-  // keep track of the time for the 120 minute curing cycle. 
+  // We use millis() to detect a double push, control for bounce, and
+  // keep track of the time for the 120 minute curing cycle.
   // There is a slight chance that the millis() counter would roll over
-  // back to zero during a cycle (this happens every 50 days or so), 
+  // back to zero during a cycle (this happens every 50 days or so),
   // so we try to account for that. (Currently a FIXME)
 
-  
+
   int reading = digitalRead(go_button);
   Serial.println(reading);
   if (reading != lastButtonState) {
@@ -117,7 +117,7 @@ void loop() {
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
       buttonState = reading;
-      if (buttonState == LOW){
+      if (buttonState == LOW) {
         cycle_run = !cycle_run;
         finish_time = millis() + target_time;
       }
@@ -131,31 +131,67 @@ void loop() {
 
 
   // Run or terminate curing process
-  if      (!cycle_run) {  heating = 0; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
-  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0;  heating = 0; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { heating = 1; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); digitalWrite(LED03, LOW); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, LOW); digitalWrite(LED03, LOW); }
-  else    { heating = 0;  digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
+  if      (!cycle_run) {
+    heating = 0;
+    digitalWrite(relay_one, LOW);
+    digitalWrite(relay_two, LOW);
+    digitalWrite(LED01, LOW);
+    digitalWrite(LED02, LOW);
+    digitalWrite(LED03, HIGH);
+  }
+  else if (cycle_run && ( finish_time <= millis() )) {
+    cycle_run = 0;
+    heating = 0;
+    digitalWrite(relay_one, LOW);
+    digitalWrite(relay_two, LOW);
+    digitalWrite(LED01, LOW);
+    digitalWrite(LED02, LOW);
+    digitalWrite(LED03, HIGH);
+  }
+  else if (cycle_run && ( finish_time > millis() ) && ( plate_temp < target_temp ) ) {
+    heating = 1;
+    digitalWrite(relay_one, HIGH);
+    digitalWrite(relay_two, HIGH);
+    digitalWrite(LED01, HIGH);
+    digitalWrite(LED02, HIGH);
+    digitalWrite(LED03, LOW);
+  }
+  else if (cycle_run && ( finish_time > millis() ) && ( plate_temp >= target_temp ) ) {
+    heating = 0;
+    digitalWrite(relay_one, HIGH);
+    digitalWrite(relay_two, LOW);
+    digitalWrite(LED01, HIGH);
+    digitalWrite(LED02, LOW);
+    digitalWrite(LED03, LOW);
+  }
+  else    {
+    heating = 0;
+    digitalWrite(relay_one, LOW);
+    digitalWrite(relay_two, LOW);
+    digitalWrite(LED01, LOW);
+    digitalWrite(LED02, LOW);
+    digitalWrite(LED03, HIGH);
+  }
 
-   // Print status and temperature to serial monitor
-   Serial.print(" Box temperature: ");
-   Serial.print(box_temp);
-   Serial.print(" C");
-   Serial.print(" Plate temperature: ");
-   Serial.print(plate_temp);
-   Serial.print(" C");
-   Serial.print(" Run: ");
-   Serial.print(cycle_run);
-   Serial.print(" Heat: ");
-   Serial.println(heating);
+  // Print status and temperature to serial monitor
+  Serial.print(" Box temperature: ");
+  Serial.print(box_temp);
+  Serial.print(" C");
+  Serial.print(" Plate temperature: ");
+  Serial.print(plate_temp);
+  Serial.print(" C");
+  Serial.print(" Run: ");
+  Serial.print(cycle_run);
+  Serial.print(" Heat: ");
+  Serial.println(heating);
 
-   // save the reading.  Next time through the loop,
-   // it'll be the lastButtonState:
-   lastButtonState = reading;
-   
+  // save the reading.  Next time through the loop,
+  // it'll be the lastButtonState:
+  lastButtonState = reading;
 
-   // delay(10);
-  
+
+  // delay(10);
+
 }
 
 
@@ -167,7 +203,7 @@ void loop() {
 // is drawn from their tutorial.
 // We use 5v which should be less noisy as normally the power is
 // from a power supply and not USB. When connected to a computer
-// to read serial output the temperature values will 
+// to read serial output the temperature values will
 // fluctuate a bit do to circuit noise
 
 int check_Temperature(int p) {
@@ -178,31 +214,31 @@ int check_Temperature(int p) {
   float res;       // Measured resistance
   float average;   // ADC average
   float steinhart; // Temperature via Steinhard-Hart equation
-  
+
   // Convert ADC value to resistance using an average
   // ADC value = R/(R + resistor_value) * Vcc * 1023/Varef
   // Board and, therefore, Varef is 5v
   // So, R = resistor_value/(1023/ADC - 1)
-  // R = 100K / (1023/ADC - 1) 
-  
+  // R = 100K / (1023/ADC - 1)
+
   // Take samples
-  for (i=0; i < NUMSAMPLES; i++) {
+  for (i = 0; i < NUMSAMPLES; i++) {
     samples[i] = analogRead(tpin);
     delay(10);
   }
 
   // Calculate average
   average = 0;
-  for (i=0; i < NUMSAMPLES; i++) {
+  for (i = 0; i < NUMSAMPLES; i++) {
     average += samples[i];
   }
   average /= NUMSAMPLES;
 
   // Convert to R in Ohms
   res = RESISTANCE / (1023 / average - 1);
-  // Serial.print("Thermistor resistance "); 
+  // Serial.print("Thermistor resistance ");
   // Serial.println(res, 0);
- 
+
   // Use R to convert to C via the Steinhart-Hart equation
   // We use the suggested simplified B parameter equation and
   // estimate parameters.
@@ -210,13 +246,13 @@ int check_Temperature(int p) {
   // Where, T0 is 298.15K at 25 decrees C (room temperature)
   // and B, the coefficient of the thermistor, is 3950
 
-  steinhart = res / THERMISTORNOMINAL;              // (R/Ro)
-  steinhart = log(steinhart);                       // ln(R/Ro)
-  steinhart /= BCOEFFICIENT;                        // 1/B * ln(R/Ro)
+  steinhart = res / THERMISTORNOMINAL;         // (R/Ro)
+  steinhart = log(steinhart);                  // ln(R/Ro)
+  steinhart /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
   steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
-  steinhart = 1.0 / steinhart;                      // Invert
-  steinhart -= 273.15;                              // convert to C
- 
+  steinhart = 1.0 / steinhart;                 // Invert
+  steinhart -= 273.15;                         // convert to C
+
   // Return the temperature value
-  return(steinhart);
+  return (steinhart);
 }
