@@ -24,20 +24,21 @@
 // THERMISTORNOMINAL is used in the Steinhart-Hart equation to convert R to temp
 // TEMPERATURENOMINAL  is used in the Steinhart-Hart equation to convert R to temp
 // BCOEFFICIENT is used in the Steinhart-Hart equation to convert R to temp
+// RESISTANCE is used in conjunction with the thermistor to convert R (Ohms) to V (Voltage). Install resistors are 100K Ohm.
 #define NUMSAMPLES 5
 #define THERMISTORNOMINAL 10000
 #define TEMPERATURENOMINAL 25
 #define BCOEFFICIENT 3950
+#define RESISTANCE 100000
 
 // Analog pin assignments for thermistors (100K)
 const int box_thermistor = 0;   // Yellow wire 100K Ohm
 const int plate_thermistor = 1; // White wire 100K Ohm
-const int resistance = 100000;  // Used in conjunction with the thermistor to convert R (Ohms) to V (Voltage)
 
 // Digital pin assignments
 const int relay_one = 12; // Output. Orange wire. Contols heater bed.
 const int relay_two = 11; // Output. Blue wire. Controls UV LEDs. Center positive.
-const int go_button = 50; // Input. White wire. The top button is used to initiate the curing cycle.
+const int go_button = 8; // Input. White wire. The top button is used to initiate the curing cycle.
 const int LED01 = 3;      // First red LED
 const int LED02 = 4;      // Second red LED
 const int LED03 = 5;      // Power LED. Currently illuminates box in amber when power is on.
@@ -45,7 +46,7 @@ const int LED03 = 5;      // Power LED. Currently illuminates box in amber when 
 
 // Targets
 const int target_temp = 60;        // Target curing chamber temperature in degrees C
-unsigned long target_time = 10000; // Target curing time. 120 minutes in milliseconds is 7200000
+unsigned long target_time = 7200000; // Target curing time. 120 minutes in milliseconds is 7200000
 
 // Control variables
 int samples[NUMSAMPLES]; // Array to hold a set of resistance readings for averaging
@@ -58,7 +59,7 @@ boolean cycle_run = 0; // If true, the curing process is running
 int buttonState;             // the current reading from the input pin
 int lastButtonState = LOW;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if bouncing still occurs
+unsigned long debounceDelay = 75;    // the debounce time; increase if bouncing still occurs
 unsigned long finish_time;
 
 
@@ -69,7 +70,7 @@ void setup() {
   // Input pins
   pinMode(box_thermistor, INPUT);
   pinMode(plate_thermistor, INPUT);
-  pinMode(go_button, INPUT);
+  pinMode(go_button, INPUT_PULLUP);
 
   // Output pins
   pinMode(relay_one, OUTPUT);
@@ -79,17 +80,15 @@ void setup() {
   pinMode(LED03, OUTPUT);
 
   // Set initial states
-  digitalWrite(relay_one, HIGH); // The relay closes with LOW
-  digitalWrite(relay_two, HIGH); // The relay closes with LOW
-  digitalWrite(LED01, LOW);      // Red LEDs are off. Amber on.
+  digitalWrite(relay_one, LOW); // The relay is NC. Open with LOW, closed with HIGH.
+  digitalWrite(relay_two, LOW); // The relay is NC. Open with LOW, closed with HIGH.
+  digitalWrite(LED01, LOW);     // Red LEDs are off. Amber on.
   digitalWrite(LED02, LOW);
   digitalWrite(LED03, HIGH);
-  digitalWrite(relay_one, HIGH); // Relays are open
-  digitalWrite(relay_two, HIGH);
 
   // Debugging information to serial monitor
   Serial.begin(9600); 
-
+  
   heating = 0;
 
 }
@@ -98,8 +97,8 @@ void setup() {
 void loop() {
 
    // Check ambient box temperature
-   box_temp = check_Temperature(box_thermistor, resistance);
-   plate_temp = check_Temperature(plate_thermistor, resistance);
+   box_temp = check_Temperature(box_thermistor, RESISTANCE);
+   plate_temp = check_Temperature(plate_thermistor, RESISTANCE);
   
   // Check the start button using a debounce algorithm
   // Start cycle with a single push. Abort with a double push.
@@ -111,13 +110,14 @@ void loop() {
 
   
   int reading = digitalRead(go_button);
+  Serial.println(reading);
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
   }
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
       buttonState = reading;
-      if (buttonState == HIGH){
+      if (buttonState == LOW){
         cycle_run = !cycle_run;
         finish_time = millis() + target_time;
       }
@@ -131,11 +131,11 @@ void loop() {
 
 
   // Run or terminate curing process
-  if      (!cycle_run) {  heating = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
-  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0;  heating = 0; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { heating = 1; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); }
-  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, LOW); }
-  else    { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); }
+  if      (!cycle_run) {  heating = 0; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
+  else if (cycle_run && ( finish_time <= millis() )) { cycle_run = 0;  heating = 0; digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp < target_temp ) ) { heating = 1; digitalWrite(relay_one, HIGH); digitalWrite(relay_two, HIGH); digitalWrite(LED01, HIGH); digitalWrite(LED02, HIGH); digitalWrite(LED03, LOW); }
+  else if (cycle_run && ( finish_time > millis() ) && ( box_temp >= target_temp ) ) { heating = 0;  digitalWrite(relay_one, HIGH); digitalWrite(relay_two, LOW); digitalWrite(LED01, HIGH); digitalWrite(LED02, LOW); digitalWrite(LED03, LOW); }
+  else    { heating = 0;  digitalWrite(relay_one, LOW); digitalWrite(relay_two, LOW); digitalWrite(LED01, LOW); digitalWrite(LED02, LOW); digitalWrite(LED03, HIGH); }
 
    // Print status and temperature to serial monitor
    Serial.print(" Box temperature: ");
