@@ -46,7 +46,7 @@ const int LED03 = 5;      // Power LED. Currently illuminates box in amber when 
 
 // Targets
 const float target_temp = 60;        // Target curing chamber temperature in degrees C
-unsigned long target_time = 7200000; // Target curing time. 120 minutes in milliseconds is 7200000
+unsigned long target_time = 7200000; // Target curing time. 120 minutes in milliseconds is 7,200,000
 
 // Control variables
 int samples[NUMSAMPLES]; // Array to hold a set of resistance readings for averaging
@@ -60,6 +60,7 @@ int buttonState;             // the current reading from the input pin
 int lastButtonState = LOW;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 75;    // the debounce time; increase if bouncing still occurs
+unsigned long start_time;
 unsigned long finish_time;
 
 
@@ -128,7 +129,12 @@ void loop() {
   Serial.print(buttonState);
   Serial.print(" ");
 
-
+  if (cycle_run) {
+    start_time = millis();
+  } else {
+    finish_time = 0;
+    start_time = 0;
+  }
 
   // Run or terminate curing process
   if      (!cycle_run) {
@@ -173,6 +179,9 @@ void loop() {
     digitalWrite(LED03, HIGH);
   }
 
+  // Calculate time remaining
+  float minutes = (finish_time - start_time) / 60000;
+
   // Print status and temperature to serial monitor
   Serial.print(" Box temperature: ");
   Serial.print(box_temp);
@@ -183,7 +192,9 @@ void loop() {
   Serial.print(" Run: ");
   Serial.print(cycle_run);
   Serial.print(" Heat: ");
-  Serial.println(heating);
+  Serial.print(heating);
+  Serial.print(" Time remaining: ");
+  Serial.println(minutes, 2);
 
   // save the reading.  Next time through the loop,
   // it'll be the lastButtonState:
