@@ -26,7 +26,7 @@
 // BCOEFFICIENT is used in the Steinhart-Hart equation to convert R to temp
 // RESISTANCE is used in conjunction with the thermistor to convert R (Ohms) to V (Voltage). Install resistors are 100K Ohm.
 #define NUMSAMPLES 5
-#define THERMISTORNOMINAL 10000
+#define THERMISTORNOMINAL 100000
 #define TEMPERATURENOMINAL 25
 #define BCOEFFICIENT 3950
 #define RESISTANCE 100000
@@ -97,8 +97,8 @@ void setup() {
 void loop() {
 
    // Check ambient box temperature
-   box_temp = check_Temperature(box_thermistor, RESISTANCE);
-   plate_temp = check_Temperature(plate_thermistor, RESISTANCE);
+   box_temp = check_Temperature(box_thermistor);
+   plate_temp = check_Temperature(plate_thermistor);
   
   // Check the start button using a debounce algorithm
   // Start cycle with a single push. Abort with a double push.
@@ -170,19 +170,20 @@ void loop() {
 // to read serial output the temperature values will 
 // fluctuate a bit do to circuit noise
 
-int check_Temperature(int p, int r) {
+int check_Temperature(int p) {
 
-  int tpin = p;  // Anaolog pin with thermistor
-  int res = r;   // Resistor value
+  int tpin = p;    // Thermistor ADC value
 
   uint8_t i;
-  float average;  // R average
+  float res;       // Measured resistance
+  float average;   // ADC average
   float steinhart; // Temperature via Steinhard-Hart equation
   
   // Convert ADC value to resistance using an average
   // ADC value = R/(R + resistor_value) * Vcc * 1023/Varef
   // Board and, therefore, Varef is 5v
   // So, R = resistor_value/(1023/ADC - 1)
+  // R = 100K / (1023/ADC - 1) 
   
   // Take samples
   for (i=0; i < NUMSAMPLES; i++) {
@@ -198,10 +199,10 @@ int check_Temperature(int p, int r) {
   average /= NUMSAMPLES;
 
   // Convert to R in Ohms
-  average = (1023 / average) - 1;
-  average = res / average;
-
-
+  res = RESISTANCE / (1023 / average - 1);
+  // Serial.print("Thermistor resistance "); 
+  // Serial.println(res, 0);
+ 
   // Use R to convert to C via the Steinhart-Hart equation
   // We use the suggested simplified B parameter equation and
   // estimate parameters.
@@ -209,13 +210,13 @@ int check_Temperature(int p, int r) {
   // Where, T0 is 298.15K at 25 decrees C (room temperature)
   // and B, the coefficient of the thermistor, is 3950
 
-  steinhart = average / THERMISTORNOMINAL; // (R/R0)
-  steinhart = log(steinhart); // ln(R/R0)
-  steinhart /= BCOEFFICIENT; // 1/B * ln(R/R0)
-  steinhart =+ 1.0 / TEMPERATURENOMINAL + 273.15; // + (1/T0)
-  steinhart = 1.0 / steinhart; // Invert
-  steinhart -= 273.15; // Convert degrees K to degrees C
-
+  steinhart = res / THERMISTORNOMINAL;              // (R/Ro)
+  steinhart = log(steinhart);                       // ln(R/Ro)
+  steinhart /= BCOEFFICIENT;                        // 1/B * ln(R/Ro)
+  steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
+  steinhart = 1.0 / steinhart;                      // Invert
+  steinhart -= 273.15;                              // convert to C
+ 
   // Return the temperature value
   return(steinhart);
 }
